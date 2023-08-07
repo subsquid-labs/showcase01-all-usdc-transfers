@@ -14,7 +14,9 @@ export const USDC_CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
 export const processor = new EvmBatchProcessor()
     .setDataSource({
         archive: lookupArchive('eth-mainnet'),
+        chain: 'https://rpc.ankr.com/eth',
     })
+    .setFinalityConfirmation(75)
     .addLog({
         range: {from: 6_082_465},
         address: [USDC_CONTRACT_ADDRESS],

@@ -3,7 +3,7 @@ import {UsdcTransfer} from './model'
 import {processor, USDC_CONTRACT_ADDRESS} from './processor'
 import * as usdcAbi from './abi/usdc'
 
-processor.run(new TypeormDatabase({supportHotBlocks: false}), async (ctx) => {
+processor.run(new TypeormDatabase({supportHotBlocks: true}), async (ctx) => {
     const transfers: UsdcTransfer[] = []
     for (let block of ctx.blocks) {
         for (let log of block.logs) {

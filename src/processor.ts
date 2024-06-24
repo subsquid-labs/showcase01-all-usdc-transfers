@@ -1,4 +1,4 @@
-import { lookupArchive } from "@subsquid/archive-registry";
+import {assertNotNull} from '@subsquid/util-internal'
 import {
   BlockHeader,
   DataHandlerContext,
@@ -6,19 +6,22 @@ import {
   EvmBatchProcessorFields,
   Log as _Log,
   Transaction as _Transaction,
-} from "@subsquid/evm-processor";
-import * as usdcAbi from "./abi/usdc";
+} from '@subsquid/evm-processor';
+import * as usdcAbi from './abi/usdc';
 
 export const USDC_CONTRACT_ADDRESS =
-  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 
 export const processor = new EvmBatchProcessor()
-  .setGateway("https://v2.archive.subsquid.io/network/ethereum-mainnet")
+  .setGateway('https://v2.archive.subsquid.io/network/ethereum-mainnet')
   // Chain RPC endpoint is required for
   //  - indexing unfinalized blocks https://docs.subsquid.io/basics/unfinalized-blocks/
   //  - querying the contract state https://docs.subsquid.io/evm-indexing/query-state/
   .setRpcEndpoint({
-    url: "https://rpc.ankr.com/eth",
+    url: assertNotNull(
+      process.env.RPC_ETH_HTTP,
+      'Required env variable RPC_ETH_HTTP is missing'
+    ),
     // More RPC connection options at https://docs.subsquid.io/evm-indexing/configuration/initialization/#set-data-source
     rateLimit: 10,
   })

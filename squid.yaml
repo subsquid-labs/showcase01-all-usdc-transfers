@@ -1,24 +1,16 @@
 manifestVersion: subsquid.io/v0.1
 name: showcase01-all-usdc-transfers
 version: 1
-description: 'The very first evm squid from manifest  '
-build: 
+description: |-
+  The very first evm squid from manifest
+build:
+
 deploy:
   addons:
-    postgres: 
+    postgres:
+    rpc:
+      - eth.http # RPC proxy URL will be supplied via the RPC_ETH_HTTP env variable
   processor:
-    cmd:
-      - node
-      - lib/main
+    cmd: [ "sqd", "process:prod" ]
   api:
-    cmd:
-      - npx
-      - squid-graphql-server
-      - '--dumb-cache'
-      - in-memory
-      - '--dumb-cache-ttl'
-      - '1000'
-      - '--dumb-cache-size'
-      - '100'
-      - '--dumb-cache-max-age'
-      - '1000'
+    cmd: [ "sqd", "serve:prod" ]

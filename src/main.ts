@@ -40,6 +40,9 @@ const processor = new EvmBatchProcessor()
   // all contracts, or the "topic0" filter to get all events from the USDC
   // contract, or both to get all event logs chainwide. We also could have
   // requested some related data, such as the parent transaction or its traces.
+  //
+  // Other .addXXX() methods (.addTransaction(), .addTrace(), .addStateDiff()
+  // on EVM) are similarly feature-rich.
   .addLog({
     range: { from: 6_082_465 },
     address: [USDC_CONTRACT_ADDRESS],

@@ -1,6 +1,6 @@
 # Showcase squid 01: USDC transfers in real time
 
-This squid captures all `Transfer(address,address,uint256)` events emitted by the [USDC token contract](https://etherscan.io/address/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) and keeps up with network updates [in real time](https://docs.subsquid.io/basics/unfinalized-blocks/). See more examples of requesting data with squids on the [showcase page](https://docs.subsquid.io/evm-indexing/configuration/showcase) of Subsquid documentation.
+This squid captures all `Transfer(address,address,uint256)` events emitted by the [USDC token contract](https://etherscan.io/address/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) and keeps up with network updates [in real time](https://docs.sqd.dev/en/sdk). See more examples of requesting data with squids on the [showcase page](https://docs.sqd.dev/en/sdk) of Subsquid documentation.
 
 Dependencies: Node.js, Docker.
 

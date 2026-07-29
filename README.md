@@ -15,7 +15,7 @@ sqd init showcase01 -t https://github.com/subsquid-labs/showcase01-all-usdc-tran
 cd showcase01
 
 # 2. Install dependencies
-npm ci
+npm i
 
 # 3. Start a Postgres database container and detach
 sqd up

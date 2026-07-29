@@ -1,8 +1,12 @@
 // main.js
 // This is the main executable of the squid indexer.
 
-// EvmBatchProcessor is the class responsible for data retrieval and processing.
-import {EvmBatchProcessor} from '@subsquid/evm-processor'
+// DataSourceBuilder is the class responsible for configuring data retrieval.
+import {DataSourceBuilder} from '@subsquid/evm-stream'
+// run() connects a data source to a database and a data handler.
+import {run} from '@subsquid/batch-processor'
+// augmentBlock() enriches raw block items with ids and navigation helpers.
+import {augmentBlock} from '@subsquid/evm-objects'
 // TypeormDatabase is the class responsible for data storage.
 import {TypeormDatabase} from '@subsquid/typeorm-store'
 // usdcAbi is a utility module generated from the JSON ABI of the USDC contract.
@@ -17,22 +21,34 @@ const USDC_CONTRACT_ADDRESS =
   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
 
 // First we configure data retrieval.
-const processor = new EvmBatchProcessor()
-  // SQD Network gateways are the primary source of blockchain data in
-  // squids, providing pre-filtered data in chunks of roughly 1-10k blocks.
-  // Set this for a fast sync.
-  .setGateway('https://v2.archive.subsquid.io/network/ethereum-mainnet')
-  // Another data source squid processors can use is chain RPC.
-  // In this particular squid it is used to retrieve the very latest chain data
-  // (including unfinalized blocks) in real time. It can also be used to
-  //   - make direct RPC queries to get extra data during indexing
-  //   - sync a squid without a gateway (slow)
-  .setRpcEndpoint('https://rpc.ankr.com/eth')
-  // The processor needs to know how many newest blocks it should mark as "hot".
-  // If it detects a blockchain fork, it will roll back any changes to the
-  // database made due to orphaned blocks, then re-run the processing for the
-  // main chain blocks.
-  .setFinalityConfirmation(75)
+const dataSource = new DataSourceBuilder()
+  // The SQD Network Portal is the primary source of blockchain data in
+  // squids: it is public, needs no API key, and streams pre-filtered data —
+  // including real-time unfinalized blocks — far faster than a plain RPC
+  // endpoint. If a blockchain fork replaces some unfinalized blocks, the
+  // database rolls back any changes made due to orphaned blocks, then the
+  // processing re-runs for the main chain blocks.
+  .setPortal('https://portal.sqd.dev/datasets/ethereum-mainnet')
+  // To use a private or rate-limit-lifted Portal, supply an API key
+  // through the HTTP client headers (create a key at https://portal.sqd.dev/app):
+  // .setPortal({
+  //   url: 'https://portal.sqd.dev/datasets/ethereum-mainnet',
+  //   http: {
+  //     headers: {'x-api-key': process.env.SQD_API_KEY},
+  //   },
+  // })
+  //
+  // .setFields() is for choosing data fields for the selected data items.
+  // Field selection is explicit: there are no default optional fields, so
+  // every field the handler reads must be listed.
+  .setFields({
+    log: {
+      address: true,
+      topics: true,
+      data: true,
+      transactionHash: true,
+    },
+  })
   // .addXXX() methods request data items. In this case we're asking for
   // Transfer(address,address,uint256) event logs emitted by the USDC contract.
   //
@@ -44,17 +60,13 @@ const processor = new EvmBatchProcessor()
   // Other .addXXX() methods (.addTransaction(), .addTrace(), .addStateDiff()
   // on EVM) are similarly feature-rich.
   .addLog({
-    range: { from: 6_082_465 },
-    address: [USDC_CONTRACT_ADDRESS],
-    topic0: [usdcAbi.events.Transfer.topic],
-  })
-  // .setFields() is for choosing data fields for the selected data items.
-  // Here we're requesting hashes of parent transaction for all event logs.
-  .setFields({
-    log: {
-      transactionHash: true,
+    range: {from: 6_082_465},
+    where: {
+      address: [USDC_CONTRACT_ADDRESS],
+      topic0: [usdcAbi.events.Transfer.topic],
     },
   })
+  .build()
 
 // TypeormDatabase objects store the data to Postgres. They are capable of
 // handling the rollbacks that occur due to blockchain forks.
@@ -63,20 +75,20 @@ const processor = new EvmBatchProcessor()
 // datasets.
 const db = new TypeormDatabase({supportHotBlocks: true})
 
-// The processor.run() call executes the data processing. Its second argument is
-// the handler function that is executed once on each batch of data. Processor
-// object provides the data via "ctx.blocks". However, the handler can contain
-// arbitrary TypeScript code, so it's OK to bring in extra data from IPFS,
-// direct RPC calls, external APIs etc.
-processor.run(db, async (ctx) => {
+// The run() call executes the data processing. Its third argument is the
+// handler function that is executed once on each batch of data. The batch
+// is provided via "ctx.blocks". However, the handler can contain arbitrary
+// TypeScript code, so it's OK to bring in extra data from IPFS, direct RPC
+// calls, external APIs etc.
+run(dataSource, db, async (ctx) => {
   // Making the container to hold that which will become the rows of the
   // usdc_transfer database table while processing the batch. We'll insert them
   // all at once at the end, massively saving IO bandwidth.
   const transfers: UsdcTransfer[] = []
 
-  // The data retrieved from the SQD Network gatewat and/or the RPC endpoint
-  // is supplied via ctx.blocks
-  for (let block of ctx.blocks) {
+  // The data retrieved from the SQD Network Portal is supplied via ctx.blocks.
+  // augmentBlock() adds ids and navigation helpers to the raw block items.
+  for (let block of ctx.blocks.map(augmentBlock)) {
     // On EVM, each block has four iterables - logs, transactions, traces,
     // stateDiffs
     for (let log of block.logs) {
@@ -86,7 +98,7 @@ processor.run(db, async (ctx) => {
         let {from, to, value} = usdcAbi.events.Transfer.decode(log)
         transfers.push(new UsdcTransfer({
           id: log.id,
-          block: block.header.height,
+          block: block.header.number,
           from,
           to,
           value,
